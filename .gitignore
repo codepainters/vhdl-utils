@@ -1,0 +1,8 @@
+# ISE creates amazing amount of temporary files...
+*
+!LICENSE
+!tests
+!.gitignore
+!**/*.vhd
+!**/*.xise
+!**/*.ucf
