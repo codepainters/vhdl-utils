@@ -141,17 +141,22 @@ begin
     end process;
 
     t_lcd_init : process
+        variable cmd_start : time;
     begin
         wait until lcd_e = '1';
         assert now > min_power_up_delay report "initial power-up delay time violated" severity error;
 
-        -- TODO: check timing
         for i in init_sequence'low to init_sequence'high loop
             wait until lcd_e = '0';
+            cmd_start := now;
             assert lcd_d = init_sequence(i).data report "invalid init sequence" severity error;
+
+            -- check enough time is given for each command to execute
+            wait until lcd_e = '1';
+            assert now - cmd_start >= init_sequence(i).delay report "init sequence delay violation" severity error;
         end loop;
 
-        wait until lcd_e = '1';
+        -- when we get here, lcd_e is '1' - first user command was just submitted (high nibble)
 
         wait until False;
     end process;
