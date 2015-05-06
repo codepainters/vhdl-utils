@@ -54,7 +54,18 @@ architecture behavior of t_hd44780_iface is
     constant min_e_pulse_width : time := 450 ns;
     -- minimum time between E rising edges
     constant min_e_cycle_time : time := 1000 ns;
-       
+     
+    type t_init_sequence_entry is record
+        data : std_logic_vector(7 downto 4);
+        delay : time;
+    end record; 
+    type t_init_sequence is array (0 to 3) of t_init_sequence_entry;
+    signal init_sequence : t_init_sequence := (
+        (X"3", 4.1 ms),
+        (X"3", 100 us),
+        (X"3", 100 us),
+        (X"2", 100 us));
+     
 begin
 	
     uut: hd44780_iface port map (
@@ -129,13 +140,19 @@ begin
         assert lcd_d'stable(min_data_hold_time) report "lcd_d hold time violated" severity error;
     end process;
 
-    t_lcd_init_procedure : process
+    t_lcd_init : process
     begin
         wait until lcd_e = '1';
-        assert now > min_power_up_delay report "initial power-up delay time violated" severity error;                    
+        assert now > min_power_up_delay report "initial power-up delay time violated" severity error;
        
-        -- TODO: check the whole init sequence 
-
+        -- TODO: check timing
+        for i in init_sequence'low to init_sequence'high loop
+            wait until lcd_e = '0';
+            assert lcd_d = init_sequence(i).data report "invalid init sequence" severity error;
+        end loop;
+       
+        wait until lcd_e = '1';
+       
         wait until False;
     end process;
       
