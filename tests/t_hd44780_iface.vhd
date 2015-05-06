@@ -55,6 +55,15 @@ architecture behavior of t_hd44780_iface is
     -- minimum time between E rising edges
     constant min_e_cycle_time : time := 1000 ns;
 
+    -- data writes require extra tADD (4us), for simplicity assume
+    -- every write needs it
+    constant normal_cmd_delay : time := 37us + 4us;
+    -- can't find it stated explicitely anywhere - assuming same
+    -- as command delay (probably much longer than needed)
+    constant high_nibble_delay : time := normal_cmd_delay;
+    -- Clear Display and Return Home need more time
+    constant long_cmd_delay : time := 1.52 ms;
+
     type t_init_sequence_entry is record
         data : std_logic_vector(7 downto 4);
         delay : time;
