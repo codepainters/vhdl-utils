@@ -64,6 +64,7 @@ architecture behavior of t_hd44780_iface is
     -- Clear Display and Return Home need more time
     constant long_cmd_delay : time := 1.52 ms;
 
+    -- init sequence
     type t_init_sequence_entry is record
         data : std_logic_vector(7 downto 4);
         delay : time;
@@ -75,7 +76,19 @@ architecture behavior of t_hd44780_iface is
         (X"3", 100 us),
         (X"2", 100 us));
 
+    -- user commands
+    type t_user_command is record
+        rs : std_logic;
+        data: std_logic_vector(7 downto 0);
+    end record;    
+    type t_user_commands is array (0 to 2) of t_user_command;
+    signal user_commands : t_user_commands := (
+        ('1', X"35"),
+        ('0', X"41"),
+        ('0', X"5A"));    
+
 begin
+    -- TODO: check busy signal handling
 
     uut: hd44780_iface port map (
         clk => clk,
@@ -109,15 +122,24 @@ begin
 
     user_process : process
     begin
-        -- TODO: write a process that waits for the controller to become idle
-        -- and sends some arbitrary byte
-        -- TODO: check busy signal handling
-        wait for 100ms;
-        rs <= '1';
-        db <= X"A5";
-        strb <= '1';
-        wait for clk_period;
-        strb <= '0';
+        -- note: we can't progress on the same edge when busy goes '0'
+        wait until busy = '0' and falling_edge(clk);
+
+        for i in user_commands'low to user_commands'high loop    
+            rs <= user_commands(i).rs;
+            db <= user_commands(i).data;                    
+            strb <= '1';
+            wait for clk_period;
+            strb <= '0';            
+            -- after one clk period busy should be high
+            assert busy = '1' report "busy not high after submitting a byte" severity error;            
+            
+            wait until busy = '0' and falling_edge(clk);
+        end loop;
+        
+        -- TODO: stop clocks to terminate simulation
+        
+        wait until False;
     end process;
 
     t_lcd_timing : process
