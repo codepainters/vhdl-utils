@@ -56,7 +56,7 @@ architecture behavior of t_hd44780_iface is
     constant min_e_cycle_time : time := 1000 ns;
 
     -- datasheet says 37us (+ 4us for RAM access), let's add some margin
-    constant normal_cmd_delay : time := 50us;
+    constant normal_cmd_delay : time := 50 us;
     -- can't find it stated explicitely anywhere - assuming same
     -- as command delay (probably much longer than needed)
     constant high_nibble_delay : time := normal_cmd_delay;
@@ -79,13 +79,13 @@ architecture behavior of t_hd44780_iface is
     type t_user_command is record
         rs : std_logic;
         data: std_logic_vector(7 downto 0);
-    end record;    
-    type t_user_commands is array (0 to 2) of t_user_command;
+    end record;
+    type t_user_commands is array (0 to 3) of t_user_command;
     signal user_commands : t_user_commands := (
         ('0', X"01"),   -- Display Clear command
         ('0', X"02"),   -- Return Home command
         ('1', X"41"),
-        ('1', X"5A"));    
+        ('1', X"5A"));
 
 begin
     -- TODO: check busy signal handling
@@ -121,24 +121,37 @@ begin
     end process;
 
     user_process : process
+        variable minimum_delay: time;
     begin
         -- note: we can't progress on the same edge when busy goes '0'
         wait until busy = '0' and falling_edge(clk);
 
-        for i in user_commands'low to user_commands'high loop    
+        for i in user_commands'low to user_commands'high loop
             rs <= user_commands(i).rs;
-            db <= user_commands(i).data;                    
+            db <= user_commands(i).data;
             strb <= '1';
             wait for clk_period;
-            strb <= '0';            
+            strb <= '0';
             -- after one clk period busy should be high
-            assert busy = '1' report "busy not high after submitting a byte" severity error;            
-            
-            wait until busy = '0' and falling_edge(clk);
+            assert busy = '1' report "busy not high after submitting a byte" severity error;
+
+            wait until busy = '0';
+            -- ensure enough time was given for the command to execute
+            if user_commands(i).data = B"00000001" or user_commands(i).data(7 downto 1) = B"0000001" then
+                -- Clear Display or Return Home
+                minimum_delay := long_cmd_delay;
+            else
+                minimum_delay := normal_cmd_delay;
+            end if;
+
+            assert lcd_e = '0' and lcd_e'last_event > minimum_delay
+                report "command execution time not respected" severity error;
+
+            wait until falling_edge(clk);
         end loop;
-        
+
         -- TODO: stop clocks to terminate simulation
-        
+
         wait until False;
     end process;
 
