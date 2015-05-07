@@ -55,14 +55,13 @@ architecture behavior of t_hd44780_iface is
     -- minimum time between E rising edges
     constant min_e_cycle_time : time := 1000 ns;
 
-    -- data writes require extra tADD (4us), for simplicity assume
-    -- every write needs it
-    constant normal_cmd_delay : time := 37us + 4us;
+    -- datasheet says 37us (+ 4us for RAM access), let's add some margin
+    constant normal_cmd_delay : time := 50us;
     -- can't find it stated explicitely anywhere - assuming same
     -- as command delay (probably much longer than needed)
     constant high_nibble_delay : time := normal_cmd_delay;
-    -- Clear Display and Return Home need more time
-    constant long_cmd_delay : time := 1.52 ms;
+    -- Clear Display and Return Home need more time (1.6 ms + margin)
+    constant long_cmd_delay : time := 2 ms;
 
     -- init sequence
     type t_init_sequence_entry is record
@@ -83,9 +82,10 @@ architecture behavior of t_hd44780_iface is
     end record;    
     type t_user_commands is array (0 to 2) of t_user_command;
     signal user_commands : t_user_commands := (
-        ('1', X"35"),
-        ('0', X"41"),
-        ('0', X"5A"));    
+        ('0', X"01"),   -- Display Clear command
+        ('0', X"02"),   -- Return Home command
+        ('1', X"41"),
+        ('1', X"5A"));    
 
 begin
     -- TODO: check busy signal handling
