@@ -24,7 +24,7 @@ entity hd44780_iface is
         db : in  std_logic_vector(7 downto 0);
         rs : in std_logic;
         strb : in std_logic;
-        busy : out std_logic;
+        rdy : out std_logic;
 			  
         -- outputs to LCD
         lcd_e  : out  std_logic;
@@ -152,7 +152,7 @@ begin
     end process;
     
     -- output busy signal only goes low in 'ready' state
-    busy <= '0' when state = ready else '1';
+    rdy <= '1' when state = ready else '0';
 
     -- timer process waits for 1 on ws_start signal, then it preloads
     -- wr_delay_cnt from wr_delay and starts couting down 

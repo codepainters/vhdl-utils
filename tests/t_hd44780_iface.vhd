@@ -19,7 +19,7 @@ architecture behavior of t_hd44780_iface is
          db : in std_logic_vector(7 downto 0);
          rs : in std_logic;
          strb : in std_logic;
-         busy : out std_logic;
+         rdy : out std_logic;
 
          lcd_e : out std_logic;
          lcd_rs : out std_logic;
@@ -34,7 +34,7 @@ architecture behavior of t_hd44780_iface is
     signal rs : std_logic := '0';
     signal strb : std_logic := '0';
 
-    signal busy : std_logic;
+    signal ready : std_logic;
     signal lcd_e : std_logic;
     signal lcd_rs : std_logic;
     signal lcd_rw : std_logic;
@@ -88,7 +88,7 @@ architecture behavior of t_hd44780_iface is
         ('1', X"5A"));
 
 begin
-    -- TODO: check busy signal handling
+    -- TODO: check ready signal handling
 
     uut: hd44780_iface port map (
         clk => clk,
@@ -96,7 +96,7 @@ begin
         db => db,
         rs => rs,
         strb => strb,
-        busy => busy,
+        rdy => ready,
         lcd_e => lcd_e,
         lcd_rs => lcd_rs,
         lcd_rw => lcd_rw,
@@ -123,8 +123,8 @@ begin
     user_process : process
         variable minimum_delay: time;
     begin
-        -- note: we can't progress on the same edge when busy goes '0'
-        wait until busy = '0' and falling_edge(clk);
+        -- note: we can't progress on the same edge when ready goes '1'
+        wait until ready = '1' and falling_edge(clk);
 
         for i in user_commands'low to user_commands'high loop
             rs <= user_commands(i).rs;
@@ -132,10 +132,10 @@ begin
             strb <= '1';
             wait for clk_period;
             strb <= '0';
-            -- after one clk period busy should be high
-            assert busy = '1' report "busy not high after submitting a byte" severity error;
+            -- after one clk period 'ready' should be low
+            assert ready = '0' report "ready not low after submitting a byte" severity error;
 
-            wait until busy = '0';
+            wait until ready = '1';
             -- ensure enough time was given for the command to execute
             if user_commands(i).data = B"00000001" or user_commands(i).data(7 downto 1) = B"0000001" then
                 -- Clear Display or Return Home

@@ -8,7 +8,7 @@ entity top is
     port(clk : in std_logic;
          strb : in std_logic;
          rs : in std_logic;
-         busy : out std_logic;
+         ready : out std_logic;
          db : in  std_logic_vector(7 downto 0);
          -- LCD interface
 	     lcd_e   : out  STD_LOGIC;
@@ -39,7 +39,7 @@ architecture rtl of top is
         db : in  std_logic_vector(7 downto 0);
         rs : in std_logic;
         strb : in std_logic;
-        busy : out std_logic;
+        rdy : out std_logic;
 			  
         -- outputs to LCD
         lcd_e  : out  std_logic;
@@ -67,7 +67,7 @@ begin
                  db => db,
                  rs => rs,
                  strb => strb,
-                 busy => busy,
+                 rdy => ready,
                  time_base => time_base
                  );
         
