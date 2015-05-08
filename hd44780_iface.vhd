@@ -15,7 +15,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity hd44780_iface is
-   port (  
+    generic (time_base_period : time);
+    port (  
         -- main clock
         clk : in std_logic;
         time_base : in std_logic;
@@ -36,12 +37,12 @@ end hd44780_iface;
 architecture behavioral of hd44780_iface is
 
     -- intial delay after power - 50ms
-    constant POWER_ON_DELAY : integer := 50; 
+    constant POWER_ON_DELAY : integer := 50 ms / time_base_period; 
     -- delay after each instruction in the init sequence. HD44780 requires 4.1ms
     -- after first instruction, for simplicty use 5ms for each 
-    constant INIT_DELAY : integer := 5;
-    constant NIBBLE_DELAY : integer := 1;
-    constant CMD_DELAY : integer := 2;
+    constant INIT_DELAY : integer := 5 ms / time_base_period;
+    constant NIBBLE_DELAY : integer := 100 us / time_base_period;
+    constant CMD_DELAY : integer := 2 ms / time_base_period;
  
     -- main FSM (sequencer) states
     type state_type is (power_on, init_write, init_wait, ready, d_write_nh, d_wait_nh, d_write_nl, d_wait_nl);
@@ -65,7 +66,7 @@ architecture behavioral of hd44780_iface is
     signal wr_state : wr_state_type := wr_wait;       
     signal wr_start : std_logic := '0';
 
-    constant wr_delay_bits : integer := 7;
+    constant wr_delay_bits : integer := 10;
     signal wr_delay : signed(wr_delay_bits - 2 downto 0); 
     signal wr_delay_cnt : signed(wr_delay_bits - 1 downto 0) := to_signed(POWER_ON_DELAY, wr_delay_bits); 
     signal wr_busy : std_logic;

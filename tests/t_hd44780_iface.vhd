@@ -14,6 +14,7 @@ end t_hd44780_iface;
 architecture behavior of t_hd44780_iface is
 
     component hd44780_iface
+    generic (time_base_period : time);
     port(clk : in std_logic;
          time_base : in std_logic;
          db : in std_logic_vector(7 downto 0);
@@ -41,8 +42,9 @@ architecture behavior of t_hd44780_iface is
     signal lcd_d : std_logic_vector(7 downto 4);
 
     -- 50MHz main clock, 1kHz time base
-    constant clk_period : time := 20 ns;
-    constant time_base_ratio : integer := 50_000;
+    constant clk_period : time := 20 ns;    
+    constant time_base_ratio : integer := 50_00;
+    constant time_base_period : time := clk_period * time_base_ratio;
 
     -- E pulse timing paramters, from the Hitachi HD44780U datahseet,
     -- worst case (VCC 2.7..4.5V)
@@ -90,17 +92,19 @@ architecture behavior of t_hd44780_iface is
 begin
     -- TODO: check ready signal handling
 
-    uut: hd44780_iface port map (
-        clk => clk,
-        time_base => time_base,
-        db => db,
-        rs => rs,
-        strb => strb,
-        rdy => ready,
-        lcd_e => lcd_e,
-        lcd_rs => lcd_rs,
-        lcd_rw => lcd_rw,
-        lcd_d => lcd_d);
+    uut: hd44780_iface 
+        generic map (time_base_period => time_base_period)
+        port map (
+            clk => clk,
+            time_base => time_base,
+            db => db,
+            rs => rs,
+            strb => strb,
+            rdy => ready,
+            lcd_e => lcd_e,
+            lcd_rs => lcd_rs,
+            lcd_rw => lcd_rw,
+            lcd_d => lcd_d);
 
     -- Clock process definitions
     clk_process : process
