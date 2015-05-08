@@ -29,9 +29,10 @@ architecture rtl of top is
              q : out  std_logic);
     end component;
 
-	component hd44780_iface is 
+	component hd44780_iface is
+        generic (time_base_period : integer);
         port(
-       -- main clock
+        -- main clock
         clk : in std_logic;
         time_base : in std_logic;
 
@@ -59,6 +60,7 @@ begin
         port map(clk => clk, q => time_base);
    
     lcd : hd44780_iface
+        generic map (time_base_period => 100)
         port map(clk => clk,
                  lcd_e => lcd_e,
                  lcd_rs => lcd_rs,

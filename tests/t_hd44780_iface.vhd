@@ -14,7 +14,7 @@ end t_hd44780_iface;
 architecture behavior of t_hd44780_iface is
 
     component hd44780_iface
-    generic (time_base_period : time);
+    generic (time_base_period : integer);
     port(clk : in std_logic;
          time_base : in std_logic;
          db : in std_logic_vector(7 downto 0);
@@ -44,7 +44,7 @@ architecture behavior of t_hd44780_iface is
     -- 50MHz main clock, 1kHz time base
     constant clk_period : time := 20 ns;    
     constant time_base_ratio : integer := 5_000;
-    constant time_base_period : time := clk_period * time_base_ratio;
+    constant time_base_period : integer := 100; -- microseconds
 
     -- E pulse timing paramters, from the Hitachi HD44780U datahseet,
     -- worst case (VCC 2.7..4.5V)

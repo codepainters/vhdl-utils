@@ -16,9 +16,9 @@ use ieee.numeric_std.all;
 
 entity hd44780_iface is
     generic (
-        -- period of the time base pulses, it must not be be lower than 1us
-        -- 100us should give a good choice
-        time_base_period : time);
+        -- period of the time base pulses (in microseconds, unfortunately ISE 
+        -- doesn't allow physical types here), 100us should give a good choice
+        time_base_period : integer);
     port (  
         -- main clock
         clk : in std_logic;
@@ -42,12 +42,12 @@ end hd44780_iface;
 architecture behavioral of hd44780_iface is
 
     -- intial delay after power - 50ms
-    constant POWER_ON_DELAY : integer := 50 ms / time_base_period; 
+    constant POWER_ON_DELAY : integer := 50_000 / time_base_period; 
     -- delay after each instruction in the init sequence. HD44780 requires 4.1ms
     -- after first instruction, for simplicty use 5ms for each 
-    constant INIT_DELAY : integer := 5 ms / time_base_period;
-    constant NIBBLE_DELAY : integer := 100 us / time_base_period;
-    constant CMD_DELAY : integer := 2 ms / time_base_period;
+    constant INIT_DELAY : integer := 5_000 / time_base_period;
+    constant NIBBLE_DELAY : integer := 100 / time_base_period;
+    constant CMD_DELAY : integer := 2_000 / time_base_period;
  
     -- main FSM (sequencer) states
     type state_type is (power_on, init_write, init_wait, ready, d_write_nh, d_wait_nh, d_write_nl, d_wait_nl);
@@ -79,6 +79,7 @@ architecture behavioral of hd44780_iface is
                 return m;
             end if;
         end loop;
+        return 0;
     end function;
 
     constant wr_delay_bits : integer := ceillog2(POWER_ON_DELAY) + 1;
