@@ -43,7 +43,7 @@ architecture behavior of t_hd44780_iface is
 
     -- 50MHz main clock, 1kHz time base
     constant clk_period : time := 20 ns;    
-    constant time_base_ratio : integer := 50_00;
+    constant time_base_ratio : integer := 5_000;
     constant time_base_period : time := clk_period * time_base_ratio;
 
     -- E pulse timing paramters, from the Hitachi HD44780U datahseet,

@@ -66,7 +66,17 @@ architecture behavioral of hd44780_iface is
     signal wr_state : wr_state_type := wr_wait;       
     signal wr_start : std_logic := '0';
 
-    constant wr_delay_bits : integer := 10;
+    -- helper function to calculate number of bits needed for delay counter
+    function ceillog2 (constant n : natural) return natural is
+    begin
+        for m in 0 to 35 loop
+            if 2**m >= n then
+                return m;
+            end if;
+        end loop;
+    end function;
+
+    constant wr_delay_bits : integer := ceillog2(POWER_ON_DELAY) + 1;
     signal wr_delay : signed(wr_delay_bits - 2 downto 0); 
     signal wr_delay_cnt : signed(wr_delay_bits - 1 downto 0) := to_signed(POWER_ON_DELAY, wr_delay_bits); 
     signal wr_busy : std_logic;
