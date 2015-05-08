@@ -15,10 +15,15 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity hd44780_iface is
-    generic (time_base_period : time);
+    generic (
+        -- period of the time base pulses, it must not be be lower than 1us
+        -- 100us should give a good choice
+        time_base_period : time);
     port (  
         -- main clock
         clk : in std_logic;
+        -- time_base is used to measure delays, it should go 1 for 
+        -- one clk cycle every time_base_period
         time_base : in std_logic;
 
         -- control interface
