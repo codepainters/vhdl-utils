@@ -19,10 +19,11 @@ entity i2c_slave is
         sda : inout  std_logic;
 
         -- received data interface (from I2C bus)
-        din : out  std_logic_vector (7 downto 0);
+        din : out std_logic_vector (7 downto 0);
 
         -- transmitted data interface (towards I2C bus)
-        dout : in  std_logic_vector (7 downto 0));
+        dout : in std_logic_vector (7 downto 0)
+    );
 end i2c_slave;
 
 architecture behavioral of i2c_slave is
@@ -32,7 +33,46 @@ architecture behavioral of i2c_slave is
     signal sda_in : std_logic;
     signal sda_pull : std_logic := '0';
 
+    signal scl_in_clean : std_logic;
+    signal sda_in_clean : std_logic;
+
+    type fsm_state_t is (s_idle);
+    signal fsm_state : fsm_state_t := s_idle;
+
 begin
+
+    -- concurrent statements for the bidirectional pins
+    scl_in <= scl;
+    scl <= '0' when scl_pull = '1' else 'X';
+    sda_in <= sda;
+    sda <= '0' when sda_pull = '1' else 'X';
+
+    -- deglitching / reclocking (because I2C inputs are not aligned to CLK)
+    i2c_deglitch: process(clk) is
+        variable scl_sreg : std_logic_vector(2 downto 0) := (others => '0');
+        variable sda_sreg : std_logic_vector(2 downto 0) := (others => '0');
+    begin
+        if rising_edge(clk) then
+            -- shift SCL/SDA into MSB of the shift registers
+            scl_sreg = scl_in & scl_sreg(scl_sreg'high to 1)
+            sda_sreg = sda_in & sda_sreg(sda_sreg'high to 1)
+
+            scl_in_clean <= '1' when scl_sreg = (scl_reg'range => '1') else '0';
+            sda_in_clean <= '1' when sda_sreg = (sda_REg'range => '1') else '0';
+        end if;
+    end process;
+
+    -- main I2C slave FSM
+    i2c_fsm: process(clk) is
+    begin
+        if rising_edge(clk) then
+            case state =>
+                when s_idle =>
+                    -- TODO: detect start condition
+
+            end case;
+        end if;
+    end process;
 
 end behavioral;
 
