@@ -10,7 +10,8 @@ use ieee.std_logic_1164.ALL;
 
 entity i2c_slave is
     port (
-        -- should be ~10 times the I2C bitrate or more
+        -- should be ~10 times the I2C bitrate or more, all activity is performed
+        -- on the rising edge od this clock signal
         clk : in  std_logic;
 
         -- I2C bidirectional pins (should be connected directly to FPGA pins,
@@ -20,12 +21,16 @@ entity i2c_slave is
 
         -- user interface below
 
-        -- received data interface (from I2C bus)
+        -- The rx_data_valid goes high each time a new byte is received (available
+        -- on rx_data). It is held high until receiving side acknowledges by putting
+        -- rx_data_ack high for one clock cycle.
         rx_data : out std_logic_vector (7 downto 0);
         rx_data_valid : out std_logic;
         rx_data_ack : in std_logic;
 
-        -- transmitted data interface (towards I2C bus)
+        -- The tx_data_req goes high whenever there's a byte about to be transmitted
+        -- to the master. It stays high until user puts the data on tx_data and sets
+        -- tx_data_valid high for once clock cycle.
         tx_data : in std_logic_vector (7 downto 0)
         tx_data_req : out std_logic;
         tx_data_valid : in std_logic;
