@@ -11,7 +11,7 @@ use ieee.std_logic_1164.all;
 entity i2c_slave is
     generic (
         -- address on the I2C bus
-        address: std_logic_vector(6 downto 0);
+        address: std_logic_vector(6 downto 0)
     );
     port (
         -- should be ~10 times the I2C bitrate or more, all activity is performed
@@ -35,9 +35,9 @@ entity i2c_slave is
         -- The tx_data_req goes high whenever there's a byte about to be transmitted
         -- to the master. It stays high until user puts the data on tx_data and sets
         -- tx_data_valid high for once clock cycle.
-        tx_data : in std_logic_vector (7 downto 0)
+        tx_data : in std_logic_vector (7 downto 0);
         tx_data_req : out std_logic;
-        tx_data_valid : in std_logic;
+        tx_data_valid : in std_logic
     );
 end i2c_slave;
 
@@ -47,6 +47,10 @@ architecture behavioral of i2c_slave is
     signal scl_pull : std_logic := '0';
     signal sda_in : std_logic;
     signal sda_pull : std_logic := '0';
+
+    -- deglitcher shift registers
+    signal scl_sreg : std_logic_vector(2 downto 0) := (others => '0');
+    signal sda_sreg : std_logic_vector(2 downto 0) := (others => '0');
 
     -- reclocked and deglitched SCL/SDA inputs
     signal scl_in_clean : std_logic;
@@ -76,21 +80,19 @@ begin
 
     -- deglitching / reclocking (because I2C inputs are not aligned to CLK)
     i2c_deglitch: process(clk) is
-        variable scl_sreg : std_logic_vector(2 downto 0) := (others => '0');
-        variable sda_sreg : std_logic_vector(2 downto 0) := (others => '0');
     begin
         if rising_edge(clk) then
             -- shift SCL/SDA into MSB of the shift registers
-            scl_sreg = scl_in & scl_sreg(scl_sreg'high to 1)
-            sda_sreg = sda_in & sda_sreg(sda_sreg'high to 1)
-
-            scl_in_clean <= '1' when scl_sreg = (scl_sreg'range => '1') else '0';
-            sda_in_clean <= '1' when sda_sreg = (sda_sreg'range => '1') else '0';
+            scl_sreg <= scl_in & scl_sreg(scl_sreg'high downto 1);
+            sda_sreg <= sda_in & sda_sreg(sda_sreg'high downto 1);
 
             scl_in_prev <= scl_in_clean;
             sda_in_prev <= sda_in_clean;
         end if;
     end process;
+
+    scl_in_clean <= '1' when scl_sreg = (scl_sreg'range => '1') else '0';
+    sda_in_clean <= '1' when sda_sreg = (sda_sreg'range => '1') else '0';
 
     -- start/stop conditions
     start_condition <= scl_in_prev = '1' and scl_in_clean = '1' and
@@ -102,25 +104,25 @@ begin
     i2c_fsm: process(clk) is
     begin
         if rising_edge(clk) then
-            case state =>
+            case fsm_state is
                 when s_idle =>
                     -- detect start condition
                     if start_condition then
-                        rx_sreg <= (0 => '1', ohters => '0');
-                        state <= s_addr;
+                        rx_sreg <= (0 => '1', others => '0');
+                        fsm_state <= s_addr;
                     end if;
 
                 when s_addr =>
                     -- shift in next bit on each rising SCL edge
                     if scl_in_prev = '0' and scl_in_clean = '1' then
-                        rx_sreg <= rx_sreg[7 downto 0] & sda_in_clean;
+                        rx_sreg <= rx_sreg(7 downto 0) & sda_in_clean;
 
                         -- note: it's a signal, so we "see" previous state
                         -- if all 8 bits are clocked in, is it addressed to us?
-                        if rx_sreg[8] = '1' and rx_sreg(7 downto 1) = address then
-                            state <= s_addr_ack;
+                        if rx_sreg(8) = '1' and rx_sreg(7 downto 1) = address then
+                            fsm_state <= s_addr_ack;
                         else
-                            state <= s_idle;
+                            fsm_state <= s_idle;
                         end if;
                     end if;
 
@@ -128,12 +130,12 @@ begin
                     -- note: sda_pull is set high in this state by concurrent statement
                     -- we only wait for the clock pulse
                     if scl_in_prev = '1' and scl_in_clean = '0' then
-                        if rx_sreg[0] = '1' then
-                            state <= s_read;
+                        if rx_sreg(0) = '1' then
+                            fsm_state <= s_read;
                         else
-                            state <= s_write;
+                            fsm_state <= s_write;
                         end if;
-                        rx_sreg <= (0 => '1', ohters => '0');
+                        rx_sreg <= (0 => '1', others => '0');
                     end if;
 
                 when s_read =>
