@@ -18,11 +18,17 @@ entity i2c_slave is
         scl : inout  std_logic;
         sda : inout  std_logic;
 
+        -- user interface below
+
         -- received data interface (from I2C bus)
-        din : out std_logic_vector (7 downto 0);
+        rx_data : out std_logic_vector (7 downto 0);
+        rx_data_valid : out std_logic;
+        rx_data_ack : in std_logic;
 
         -- transmitted data interface (towards I2C bus)
-        dout : in std_logic_vector (7 downto 0)
+        tx_data : in std_logic_vector (7 downto 0)
+        tx_data_req : out std_logic;
+        tx_data_valid : in std_logic;
     );
 end i2c_slave;
 
