@@ -6,9 +6,13 @@
 ----------------------------------------------------------------------------------
 
 library ieee;
-use ieee.std_logic_1164.ALL;
+use ieee.std_logic_1164.all;
 
 entity i2c_slave is
+    generic (
+        -- address on the I2C bus
+        address: std_logic_vector(6 downto 0);
+    );
     port (
         -- should be ~10 times the I2C bitrate or more, all activity is performed
         -- on the rising edge od this clock signal
@@ -56,7 +60,7 @@ architecture behavioral of i2c_slave is
     signal stop_condition : boolean;
 
     -- FSM states
-    type fsm_state_t is (s_idle, s_addr);
+    type fsm_state_t is (s_idle, s_addr, s_addr_ack, s_read, s_write);
     signal fsm_state : fsm_state_t := s_idle;
 
     -- input shift register (1 extra bit for simple end detection)
@@ -108,8 +112,34 @@ begin
 
                 when s_addr =>
                     -- shift in next bit on each rising SCL edge
-                    if scl_in_prev = '1' and scl_in_clean = '1' then
+                    if scl_in_prev = '0' and scl_in_clean = '1' then
+                        rx_sreg <= rx_sreg[7 downto 0] & sda_in_clean;
+
+                        -- note: it's a signal, so we "see" previous state
+                        -- if all 8 bits are clocked in, is it addressed to us?
+                        if rx_sreg[8] = '1' and rx_sreg(7 downto 1) = address then
+                            state <= s_addr_ack;
+                        else
+                            state <= s_idle;
+                        end if;
                     end if;
+
+                when s_addr_ack =>
+                    -- note: sda_pull is set high in this state by concurrent statement
+                    -- we only wait for the clock pulse
+                    if scl_in_prev = '1' and scl_in_clean = '0' then
+                        if rx_sreg[0] = '1' then
+                            state <= s_read;
+                        else
+                            state <= s_write;
+                        end if;
+                        rx_sreg <= (0 => '1', ohters => '0');
+                    end if;
+
+                when s_read =>
+
+                when s_write =>
+
             end case;
         end if;
     end process;
