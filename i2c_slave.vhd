@@ -54,9 +54,9 @@ begin
 
     -- concurrent statements for the bidirectional pins
     scl_in <= scl;
-    scl <= '0' when scl_pull = '1' else 'X';
+    scl <= '0' when scl_pull = '1' else 'Z';
     sda_in <= sda;
-    sda <= '0' when sda_pull = '1' else 'X';
+    sda <= '0' when sda_pull = '1' else 'Z';
 
     -- deglitching / reclocking (because I2C inputs are not aligned to CLK)
     i2c_deglitch: process(clk) is
