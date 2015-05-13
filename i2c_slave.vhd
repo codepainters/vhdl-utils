@@ -44,11 +44,23 @@ architecture behavioral of i2c_slave is
     signal sda_in : std_logic;
     signal sda_pull : std_logic := '0';
 
+    -- reclocked and deglitched SCL/SDA inputs
     signal scl_in_clean : std_logic;
     signal sda_in_clean : std_logic;
+    -- previous states
+    signal scl_in_prev : std_logic;
+    signal sda_in_prev : std_logic;
 
-    type fsm_state_t is (s_idle);
+    -- helper signals - start/stop/edge conditions
+    signal start_condition : boolean;
+    signal stop_condition : boolean;
+
+    -- FSM states
+    type fsm_state_t is (s_idle, s_addr);
     signal fsm_state : fsm_state_t := s_idle;
+
+    -- input shift register (1 extra bit for simple end detection)
+    signal rx_sreg : std_logic_vector(8 downto 0);
 
 begin
 
@@ -68,10 +80,19 @@ begin
             scl_sreg = scl_in & scl_sreg(scl_sreg'high to 1)
             sda_sreg = sda_in & sda_sreg(sda_sreg'high to 1)
 
-            scl_in_clean <= '1' when scl_sreg = (scl_reg'range => '1') else '0';
-            sda_in_clean <= '1' when sda_sreg = (sda_REg'range => '1') else '0';
+            scl_in_clean <= '1' when scl_sreg = (scl_sreg'range => '1') else '0';
+            sda_in_clean <= '1' when sda_sreg = (sda_sreg'range => '1') else '0';
+
+            scl_in_prev <= scl_in_clean;
+            sda_in_prev <= sda_in_clean;
         end if;
     end process;
+
+    -- start/stop conditions
+    start_condition <= scl_in_prev = '1' and scl_in_clean = '1' and
+        sda_in_prev = '1' and sda_in_clean = '0';
+    stop_condition <= scl_in_prev = '1' and scl_in_clean = '1' and
+        sda_in_prev = '0' and sda_in_clean = '1';
 
     -- main I2C slave FSM
     i2c_fsm: process(clk) is
@@ -79,8 +100,16 @@ begin
         if rising_edge(clk) then
             case state =>
                 when s_idle =>
-                    -- TODO: detect start condition
+                    -- detect start condition
+                    if start_condition then
+                        rx_sreg <= (0 => '1', ohters => '0');
+                        state <= s_addr;
+                    end if;
 
+                when s_addr =>
+                    -- shift in next bit on each rising SCL edge
+                    if scl_in_prev = '1' and scl_in_clean = '1' then
+                    end if;
             end case;
         end if;
     end process;
