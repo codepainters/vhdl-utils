@@ -1,113 +1,111 @@
 --------------------------------------------------------------------------------
--- Company: 
--- Engineer:
+-- Copyright (c) 2015, Przemyslaw Wegrzyn <pwegrzyn@codepainters.com>
+-- This file is distributed under the Modified BSD License.
 --
--- Create Date:   23:56:56 05/13/2015
--- Design Name:   
--- Module Name:   /home/czajnik/work/vhdl-utils/tests/t_i2c_slave.vhd
--- Project Name:  vhdl-utils
--- Target Device:  
--- Tool versions:  
--- Description:   
--- 
--- VHDL Test Bench Created by ISE for module: i2c_slave
--- 
--- Dependencies:
--- 
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
--- Notes: 
--- This testbench has been automatically generated using types std_logic and
--- std_logic_vector for the ports of the unit under test.  Xilinx recommends
--- that these types always be used for the top-level I/O of a design in order
--- to guarantee that the testbench will bind correctly to the post-implementation 
--- simulation model.
+-- Testbench for I2C slave interface
 --------------------------------------------------------------------------------
-LIBRARY ieee;
-USE ieee.std_logic_1164.ALL;
+
+library ieee;
+use ieee.std_logic_1164.all;
  
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---USE ieee.numeric_std.ALL;
+entity t_i2c_slave is
+end t_i2c_slave;
  
-ENTITY t_i2c_slave IS
-END t_i2c_slave;
- 
-ARCHITECTURE behavior OF t_i2c_slave IS 
- 
-    -- Component Declaration for the Unit Under Test (UUT)
- 
-    COMPONENT i2c_slave
-    PORT(
-         clk : IN  std_logic;
-         scl : INOUT  std_logic;
-         sda : INOUT  std_logic;
-         rx_data : OUT  std_logic_vector(7 downto 0);
-         rx_data_valid : OUT  std_logic;
-         rx_data_ack : IN  std_logic;
-         tx_data : IN  std_logic_vector(7 downto 0);
-         tx_data_req : OUT  std_logic;
-         tx_data_valid : IN  std_logic
-        );
-    END COMPONENT;
+architecture behavior of t_i2c_slave is
+    component i2c_slave
+    generic (
+        address: std_logic_vector(6 downto 0));
+    port(
+        clk : in std_logic;
     
+        -- I2C interface
+        scl : inout std_logic;
+        sda : inout std_logic;
+         
+        -- received data interface
+        rx_data : out std_logic_vector(7 downto 0);
+        rx_data_valid : out std_logic;
+        rx_data_ack : in std_logic;
+        
+        -- transmitted data interface
+        tx_data : in std_logic_vector(7 downto 0);
+        tx_data_req : out std_logic;
+        tx_data_valid : in  std_logic);
+    end component;
 
-   --Inputs
-   signal clk : std_logic := '0';
-   signal rx_data_ack : std_logic := '0';
-   signal tx_data : std_logic_vector(7 downto 0) := (others => '0');
-   signal tx_data_valid : std_logic := '0';
+    -- clock 
+    signal clk : std_logic := '0';
+    constant clk_period : time := 20 ns;
+    signal clk_enabled : boolean := true;
 
-	--BiDirs
-   signal scl : std_logic;
-   signal sda : std_logic;
+    -- I2C interface
+    signal scl : std_logic;
+    signal sda : std_logic;
+   
+    signal scl_out : std_logic := '1';
+    signal sda_out : std_logic := '1';
+   
+    -- RX interface
+    signal rx_data : std_logic_vector(7 downto 0);
+    signal rx_data_valid : std_logic;
+    signal rx_data_ack : std_logic := '0';
 
- 	--Outputs
-   signal rx_data : std_logic_vector(7 downto 0);
-   signal rx_data_valid : std_logic;
-   signal tx_data_req : std_logic;
+ 	-- TX interface
+    signal tx_data : std_logic_vector(7 downto 0) := (others => '0');
+    signal tx_data_req : std_logic;
+    signal tx_data_valid : std_logic := '0';
 
-   -- Clock period definitions
-   constant clk_period : time := 10 ns;
- 
-BEGIN
- 
-	-- Instantiate the Unit Under Test (UUT)
-   uut: i2c_slave PORT MAP (
-          clk => clk,
-          scl => scl,
-          sda => sda,
-          rx_data => rx_data,
-          rx_data_valid => rx_data_valid,
-          rx_data_ack => rx_data_ack,
-          tx_data => tx_data,
-          tx_data_req => tx_data_req,
-          tx_data_valid => tx_data_valid
-        );
+    -- 400kHz I2C clock
+    constant i2c_clk_period : time := 2.5 us;
 
-   -- Clock process definitions
-   clk_process :process
-   begin
-		clk <= '0';
-		wait for clk_period/2;
-		clk <= '1';
-		wait for clk_period/2;
-   end process;
- 
+    procedure i2c_start(signal sda : out std_logic; signal scl : out std_logic) is
+    begin
+        sda <= '1';
+        scl <= '1';
+        wait for i2c_clk_period / 2;
+        sda <= '0';
+        wait for i2c_clk_period / 2;
+    end procedure;
 
-   -- Stimulus process
-   stim_proc: process
-   begin		
-      -- hold reset state for 100 ns.
-      wait for 100 ns;	
+    procedure i2c_stop(signal sda : out std_logic; signal scl : out std_logic) is
+    begin
+        sda <= '0';
+        scl <= '1';
+        wait for i2c_clk_period / 2;
+        sda <= '1';
+        wait for i2c_clk_period / 2;
+    end procedure;
 
-      wait for clk_period*10;
+begin
+    uut: i2c_slave 
+      generic map (address => "1010110")
+      port map (
+        clk => clk,
+        scl => scl,
+        sda => sda,
+        rx_data => rx_data,
+        rx_data_valid => rx_data_valid,
+        rx_data_ack => rx_data_ack,
+        tx_data => tx_data,
+        tx_data_req => tx_data_req,
+        tx_data_valid => tx_data_valid);
 
-      -- insert stimulus here 
+    -- clock generator
+    clk <= not clk after clk_period / 2 when clk_enabled = true else '0';
 
-      wait;
-   end process;
+    -- I2C drivers, note: weak H emulates pull-ups
+    scl <= 'H' when scl_out = '1' else '0';
+    sda <= 'H' when sda_out = '1' else '0';
 
-END;
+    stimulation : process is
+    begin
+        i2c_start(sda_out, scl_out);
+        wait for 5 * i2c_clk_period;
+        i2c_stop(sda_out, scl_out);
+        wait for 2 * i2c_clk_period;
+        clk_enabled <= false;
+        
+        wait until false;
+    end process;
+    
+end;
