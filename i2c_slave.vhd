@@ -129,7 +129,7 @@ begin
                     -- shift in next bit on each rising SCL edge
                     if rising_clk_edge then
                         rx_sreg <= rx_sreg(7 downto 0) & sda_in_clean;
-
+                    elsif falling_clk_edge then
                         -- note: it's a signal, so we "see" previous state
                         -- if all 8 bits are clocked in, is it addressed to us?
                         if rx_sreg(8) = '1' then
