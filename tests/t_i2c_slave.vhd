@@ -65,15 +65,42 @@ architecture behavior of t_i2c_slave is
         wait for i2c_clk_period / 2;
         sda <= '0';
         wait for i2c_clk_period / 2;
+        scl <= '0';
     end procedure;
 
     procedure i2c_stop(signal sda : out std_logic; signal scl : out std_logic) is
     begin
         sda <= '0';
+        scl <= '0';
+        wait for i2c_clk_period / 2;
         scl <= '1';
         wait for i2c_clk_period / 2;
         sda <= '1';
+    end procedure;
+
+    procedure i2c_clock_pulse(signal sda : out std_logic; signal scl : out std_logic) is
+    begin
+        scl <= '0';
+        wait for i2c_clk_period / 4;
+        scl <= '1';
         wait for i2c_clk_period / 2;
+        scl <= '0';
+        wait for i2c_clk_period / 4;
+    end procedure;
+
+    procedure i2c_send_addr(signal sda : out std_logic; signal scl : out std_logic;
+                            address : std_logic_vector(6 downto 0); wr : boolean) is
+    begin
+        for i in address'high downto address'low loop
+            sda <= address(i);
+            i2c_clock_pulse(sda, scl);
+        end loop; 
+        if wr then
+            sda <= '1';
+        else 
+            sda <= '0';
+        end if;
+        i2c_clock_pulse(sda, scl);
     end procedure;
 
 begin
@@ -100,8 +127,9 @@ begin
     stimulation : process is
     begin
         i2c_start(sda_out, scl_out);
-        wait for 5 * i2c_clk_period;
+        i2c_send_addr(sda_out, scl_out, B"011_0101", true);
         i2c_stop(sda_out, scl_out);
+        
         wait for 2 * i2c_clk_period;
         clk_enabled <= false;
         
