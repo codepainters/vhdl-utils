@@ -62,6 +62,8 @@ architecture behavioral of i2c_slave is
     -- helper signals - start/stop/edge conditions
     signal start_condition : boolean;
     signal stop_condition : boolean;
+    signal rising_clk_edge : boolean;
+    signal falling_clk_edge : boolean;
 
     -- FSM states
     type fsm_state_t is (s_idle, s_addr, s_addr_ack, s_read, s_write);
@@ -108,6 +110,8 @@ begin
         sda_in_prev = '1' and sda_in_clean = '0';
     stop_condition <= scl_in_prev = '1' and scl_in_clean = '1' and
         sda_in_prev = '0' and sda_in_clean = '1';
+    rising_clk_edge <= scl_in_prev = '0' and scl_in_clean = '1';
+    falling_clk_edge <= scl_in_prev = '1' and scl_in_clean = '0';
 
     -- main I2C slave FSM
     i2c_fsm: process(clk) is
@@ -123,7 +127,7 @@ begin
 
                 when s_addr =>
                     -- shift in next bit on each rising SCL edge
-                    if scl_in_prev = '0' and scl_in_clean = '1' then
+                    if rising_clk_edge then
                         rx_sreg <= rx_sreg(7 downto 0) & sda_in_clean;
 
                         -- note: it's a signal, so we "see" previous state
@@ -140,7 +144,7 @@ begin
                 when s_addr_ack =>
                     -- note: sda_pull is set high in this state by concurrent statement
                     -- we only wait for the clock pulse
-                    if scl_in_prev = '1' and scl_in_clean = '0' then
+                    if falling_clk_edge then
                         if rx_sreg(0) = '1' then
                             fsm_state <= s_read;
                         else
@@ -156,6 +160,8 @@ begin
             end case;
         end if;
     end process;
+
+    sda_pull <= '1' when fsm_state = s_addr_ack else '0';
 
 end behavioral;
 
