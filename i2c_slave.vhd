@@ -49,12 +49,12 @@ architecture behavioral of i2c_slave is
     signal sda_pull : std_logic := '0';
 
     -- deglitcher shift registers
-    signal scl_sreg : std_logic_vector(2 downto 0) := (others => '0');
-    signal sda_sreg : std_logic_vector(2 downto 0) := (others => '0');
+    signal scl_sreg : std_logic_vector(2 downto 0) := (others => '1');
+    signal sda_sreg : std_logic_vector(2 downto 0) := (others => '1');
 
     -- reclocked and deglitched SCL/SDA inputs
-    signal scl_in_clean : std_logic;
-    signal sda_in_clean : std_logic;
+    signal scl_in_clean : std_logic := '1';
+    signal sda_in_clean : std_logic := '1';
     -- previous states
     signal scl_in_prev : std_logic;
     signal sda_in_prev : std_logic;
@@ -83,16 +83,25 @@ begin
     begin
         if rising_edge(clk) then
             -- shift SCL/SDA into MSB of the shift registers
-            scl_sreg <= scl_in & scl_sreg(scl_sreg'high downto 1);
-            sda_sreg <= sda_in & sda_sreg(sda_sreg'high downto 1);
+            scl_sreg <= to_X01(scl_in) & scl_sreg(scl_sreg'high downto 1);
+            sda_sreg <= to_X01(sda_in) & sda_sreg(sda_sreg'high downto 1);
+
+            if scl_sreg = (scl_sreg'range => '1') then
+                scl_in_clean <= '1';
+            elsif scl_sreg = (scl_sreg'range => '0') then
+                scl_in_clean <= '0';
+            end if;
+
+            if sda_sreg = (sda_sreg'range => '1') then
+                sda_in_clean <= '1';
+            elsif sda_sreg = (sda_sreg'range => '0') then
+                sda_in_clean <= '0';
+            end if;
 
             scl_in_prev <= scl_in_clean;
             sda_in_prev <= sda_in_clean;
         end if;
     end process;
-
-    scl_in_clean <= '1' when scl_sreg = (scl_sreg'range => '1') else '0';
-    sda_in_clean <= '1' when sda_sreg = (sda_sreg'range => '1') else '0';
 
     -- start/stop conditions
     start_condition <= scl_in_prev = '1' and scl_in_clean = '1' and
