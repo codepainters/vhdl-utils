@@ -102,6 +102,19 @@ architecture behavior of t_i2c_slave is
         end if;
         i2c_clock_pulse(sda, scl);
     end procedure;
+    
+    procedure i2c_ack(signal sda : out std_logic; signal scl : out std_logic;
+                      signal sda_in : in std_logic; ack : out boolean) is
+    begin
+        sda <= '1';
+        scl <= '0';
+        wait for i2c_clk_period / 4;
+        scl <= '1';
+        ack := (sda_in = '0');
+        wait for i2c_clk_period / 2;
+        scl <= '0';
+        wait for i2c_clk_period / 4;        
+    end procedure;
 
 begin
     uut: i2c_slave 
@@ -125,10 +138,14 @@ begin
     sda <= 'H' when sda_out = '1' else '0';
 
     stimulation : process is
+        variable ack : boolean;
     begin
+        -- write with valid address
         i2c_start(sda_out, scl_out);
-        i2c_send_addr(sda_out, scl_out, B"011_0101", true);
+        i2c_send_addr(sda_out, scl_out, B"101_0110", true);
+        i2c_ack(sda_out, scl_out, sda, ack);
         i2c_stop(sda_out, scl_out);
+        assert ack report "test failed - no ACK" severity error;
         
         wait for 2 * i2c_clk_period;
         clk_enabled <= false;
