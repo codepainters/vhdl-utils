@@ -128,10 +128,12 @@ begin
 
                         -- note: it's a signal, so we "see" previous state
                         -- if all 8 bits are clocked in, is it addressed to us?
-                        if rx_sreg(8) = '1' and rx_sreg(7 downto 1) = address then
-                            fsm_state <= s_addr_ack;
-                        else
-                            fsm_state <= s_idle;
+                        if rx_sreg(8) = '1' then
+                            if rx_sreg(7 downto 1) = address then
+                                fsm_state <= s_addr_ack;
+                            else
+                                fsm_state <= s_idle;
+                            end if;
                         end if;
                     end if;
 
