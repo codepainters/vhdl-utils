@@ -126,8 +126,16 @@ begin
                     end if;
 
                 when s_addr =>
-                    -- shift in next bit on each rising SCL edge
-                    if rising_clk_edge then
+                    if stop_condition then
+                        -- stop condition during the address phase - go back to idle
+                        fsm_state <= s_idle;
+                    elsif start_condition then
+                        -- start condition means sync error, treat it as a (re)start
+                        -- of a new transaction
+                        rx_sreg <= (0 => '1', others => '0');
+                        fsm_state <= s_addr;
+                    elsif rising_clk_edge then
+                        -- shift in next bit on each rising SCL edge
                         rx_sreg <= rx_sreg(7 downto 0) & sda_in_clean;
                     elsif falling_clk_edge then
                         -- note: it's a signal, so we "see" previous state
