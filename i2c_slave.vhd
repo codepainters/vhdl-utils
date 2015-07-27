@@ -69,7 +69,7 @@ architecture behavioral of i2c_slave is
     -- FSM states
     type fsm_state_t is (s_idle, s_addr, s_addr_ack, 
                          s_read_ws, s_read, s_read_ack,
-                         s_write, s_write_ws);
+                         s_write, s_write_ws, s_write_ack);
     signal fsm_state : fsm_state_t := s_idle;
 
     -- input shift register
@@ -260,14 +260,14 @@ begin
                     if wr_data_ack = '1' then
                         scl_pull <= '0';
                         wr_data_valid <= '0';
-                        state <= s_write_ack;
+                        fsm_state <= s_write_ack;
                     end if;
                     
                 when s_write_ack =>
                     -- this simple implementation always ACKs writes (SDA is always high here)
                     if falling_clk_edge then
                         -- once ACK'ed, wait for next byte (or stop condition)
-                        state <= s_write;
+                        fsm_state <= s_write;
                     end if;
 
             end case;
