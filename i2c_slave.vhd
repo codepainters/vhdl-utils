@@ -23,15 +23,15 @@ entity i2c_slave is
         scl : inout  std_logic;
         sda : inout  std_logic;
 
-        -- user interface below
+        -- user interface below. Note rd/wr naming is from the master perspective,
+        -- so wr_ is for master->slave writes, and rd_ is for slave->master reads.
 
-        -- TODO: rename s/rx_/wr_/
-        -- The rx_data_valid goes high each time a new byte is received (available
-        -- on rx_data). It is held high until receiving side acknowledges by putting
-        -- rx_data_ack high for one clock cycle.
-        rx_data : out std_logic_vector (7 downto 0);
-        rx_data_valid : out std_logic;
-        rx_data_ack : in std_logic;
+        -- The wr_data_valid goes high each time a new byte is received (available
+        -- on wr_data). It is held high until receiving side acknowledges by putting
+        -- wr_data_ack high for one clock cycle.
+        wr_data : out std_logic_vector (7 downto 0);
+        wr_data_valid : out std_logic;
+        wr_data_ack : in std_logic;
 
         -- The rd_data_req goes high whenever there's a byte about to be transmitted
         -- to the master. It stays high until user puts the data on rd_data and sets
