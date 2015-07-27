@@ -25,6 +25,7 @@ entity i2c_slave is
 
         -- user interface below
 
+        -- TODO: rename s/rx_/wr_/
         -- The rx_data_valid goes high each time a new byte is received (available
         -- on rx_data). It is held high until receiving side acknowledges by putting
         -- rx_data_ack high for one clock cycle.
@@ -32,12 +33,12 @@ entity i2c_slave is
         rx_data_valid : out std_logic;
         rx_data_ack : in std_logic;
 
-        -- The tx_data_req goes high whenever there's a byte about to be transmitted
-        -- to the master. It stays high until user puts the data on tx_data and sets
-        -- tx_data_valid high for once clock cycle.
-        tx_data : in std_logic_vector (7 downto 0);
-        tx_data_req : out std_logic;
-        tx_data_valid : in std_logic
+        -- The rd_data_req goes high whenever there's a byte about to be transmitted
+        -- to the master. It stays high until user puts the data on rd_data and sets
+        -- rd_data_valid high for one clock cycle.
+        rd_data : in std_logic_vector (7 downto 0);
+        rd_data_req : out std_logic;
+        rd_data_valid : in std_logic
     );
 end i2c_slave;
 
@@ -66,11 +67,19 @@ architecture behavioral of i2c_slave is
     signal falling_clk_edge : boolean;
 
     -- FSM states
-    type fsm_state_t is (s_idle, s_addr, s_addr_ack, s_read, s_write);
+    type fsm_state_t is (s_idle, s_addr, s_addr_ack, 
+                         s_read_ws, s_read, s_read_ack,
+                         s_write);
     signal fsm_state : fsm_state_t := s_idle;
 
-    -- input shift register (1 extra bit for simple end detection)
-    signal rx_sreg : std_logic_vector(8 downto 0);
+    -- input shift register
+    signal rx_sreg : std_logic_vector(7 downto 0);
+    
+    -- TODO: convert to SREG once we have FSM fully working
+    -- count of rx/tx bits
+    signal bit_counter : integer;
+
+    -- TODO: check if it is better to latch SDA on raising or falling SCL edge
 
 begin
 
@@ -121,7 +130,8 @@ begin
                 when s_idle =>
                     -- detect start condition
                     if start_condition then
-                        rx_sreg <= (0 => '1', others => '0');
+                        rx_sreg <= (others => '0');
+                        bit_counter <= 8;
                         fsm_state <= s_addr;
                     end if;
 
@@ -132,15 +142,17 @@ begin
                     elsif start_condition then
                         -- start condition means sync error, treat it as a (re)start
                         -- of a new transaction
-                        rx_sreg <= (0 => '1', others => '0');
+                        rx_sreg <= (others => '0');
+                        bit_counter <= 8;
                         fsm_state <= s_addr;
                     elsif rising_clk_edge then
                         -- shift in next bit on each rising SCL edge
-                        rx_sreg <= rx_sreg(7 downto 0) & sda_in_clean;
+                        rx_sreg <= rx_sreg(6 downto 0) & sda_in_clean;
+                        bit_counter <= bit_counter - 1;
                     elsif falling_clk_edge then
                         -- note: it's a signal, so we "see" previous state
                         -- if all 8 bits are clocked in, is it addressed to us?
-                        if rx_sreg(8) = '1' then
+                        if bit_counter = 0 then
                             if rx_sreg(7 downto 1) = address then
                                 fsm_state <= s_addr_ack;
                             else
@@ -154,22 +166,88 @@ begin
                     -- we only wait for the clock pulse
                     if falling_clk_edge then
                         if rx_sreg(0) = '1' then
-                            fsm_state <= s_read;
+                            fsm_state <= s_read_ws;
+                            scl_pull <= '1';
+                            rd_data_req <= '1';
                         else
                             fsm_state <= s_write;
                         end if;
                         rx_sreg <= (0 => '1', others => '0');
                     end if;
+                    
+                -- read states
 
+                when s_read_ws =>
+                    -- in this state we pull SCL down and wait for the user to provide
+                    -- a byte to send, then we go to s_read. Note: because we pull SCL
+                    -- down, start/stop conditions can't occur.
+                    if rd_data_valid = '1' then
+                        -- latch the data
+                        rd_data_req <= '0';  
+                        rx_sreg <= rd_data;
+                        
+                        fsm_state <= s_read;
+                        scl_pull <= '0';
+                        bit_counter <= 8;
+                    end if;
+                    
                 when s_read =>
-
+                    -- there's a byte to send to master, 
+                    if stop_condition then
+                        fsm_state <= s_idle;
+                    elsif start_condition then
+                        -- start condition means sync error, treat it as a (re)start
+                        -- of a new transaction
+                        rx_sreg <= (others => '0');
+                        bit_counter <= 8;
+                        fsm_state <= s_addr;
+                    elsif falling_clk_edge then
+                        -- was it the last bit?
+                        if bit_counter = 0 then
+                            -- yes, go wait for master's ACK
+                            fsm_state <= s_read_ack;
+                        else
+                            -- nope, continue
+                            bit_counter <= bit_counter - 1;
+                            rx_sreg <= rx_sreg(6 downto 0) & '0';
+                        end if;
+                    end if;                    
+                    
+                when s_read_ack =>
+                    -- all bits shifted out, here we wait for falling edge to
+                    -- check if master ACKs the byte
+                    if stop_condition then                        
+                        fsm_state <= s_idle;
+                    elsif start_condition then
+                        -- start condition means sync error, treat it as a (re)start
+                        -- of a new transaction
+                        rx_sreg <= (others => '0');
+                        bit_counter <= 8;
+                        fsm_state <= s_addr;
+                    elsif falling_clk_edge then
+                        if sda_in_clean = '1' then
+                            -- byte acked, fetch the next one
+                            fsm_state <= s_read_ws;
+                            scl_pull <= '1';
+                            rd_data_req <= '1';                        
+                        else
+                            -- shortcut - go idle before the stop condition
+                            fsm_state <= s_idle;
+                        end if;                        
+                    end if;
+                    
+                -- write states
+                    
                 when s_write =>
 
             end case;
         end if;
     end process;
 
-    sda_pull <= '1' when fsm_state = s_addr_ack else '0';
+    -- SDA output is mux'ed based on fsm_state
+    sda_pull <= '1' when fsm_state = s_addr_ack 
+            else not rx_sreg(7) when fsm_state = s_read
+            else '0';
 
 end behavioral;
 
