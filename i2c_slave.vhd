@@ -69,7 +69,7 @@ architecture behavioral of i2c_slave is
     -- FSM states
     type fsm_state_t is (s_idle, s_addr, s_addr_ack, 
                          s_read_ws, s_read, s_read_ack,
-                         s_write);
+                         s_write, s_write_ws);
     signal fsm_state : fsm_state_t := s_idle;
 
     -- input shift register
@@ -171,6 +171,7 @@ begin
                             rd_data_req <= '1';
                         else
                             fsm_state <= s_write;
+                            bit_counter <= 8;
                         end if;
                         rx_sreg <= (0 => '1', others => '0');
                     end if;
@@ -239,6 +240,35 @@ begin
                 -- write states
                     
                 when s_write =>
+                    -- TODO: star/stop conditions
+                    if falling_clk_edge then
+                        -- last bit ?
+                        if bit_counter = 0 then
+                            -- yes, push it out
+                            fsm_state <= s_write_ws;
+                            scl_pull <= '1';
+                            wr_data_valid <= '1';                        
+                        else
+                            -- nope, continue
+                            bit_counter <= bit_counter - 1;
+                            rx_sreg <= rx_sreg(6 downto 0) & sda_in_clean;
+                        end if;                    
+                    end if;
+                    
+                when s_write_ws =>
+                    -- waiting for user to pick the byte received
+                    if wr_data_ack = '1' then
+                        scl_pull <= '0';
+                        wr_data_valid <= '0';
+                        state <= s_write_ack;
+                    end if;
+                    
+                when s_write_ack =>
+                    -- this simple implementation always ACKs writes (SDA is always high here)
+                    if falling_clk_edge then
+                        -- once ACK'ed, wait for next byte (or stop condition)
+                        state <= s_write;
+                    end if;
 
             end case;
         end if;
@@ -246,7 +276,7 @@ begin
 
     -- SDA output is mux'ed based on fsm_state
     sda_pull <= '1' when fsm_state = s_addr_ack 
-            else not rx_sreg(7) when fsm_state = s_read
+            else not rx_sreg(7) when fsm_state = s_read            
             else '0';
 
 end behavioral;
