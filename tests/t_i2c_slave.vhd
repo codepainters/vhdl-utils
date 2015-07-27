@@ -23,14 +23,14 @@ architecture behavior of t_i2c_slave is
         sda : inout std_logic;
          
         -- received data interface
-        rx_data : out std_logic_vector(7 downto 0);
-        rx_data_valid : out std_logic;
-        rx_data_ack : in std_logic;
+        wr_data : out std_logic_vector(7 downto 0);
+        wr_data_valid : out std_logic;
+        wr_data_ack : in std_logic;
         
         -- transmitted data interface
-        tx_data : in std_logic_vector(7 downto 0);
-        tx_data_req : out std_logic;
-        tx_data_valid : in  std_logic);
+        rd_data : in std_logic_vector(7 downto 0);
+        rd_data_req : out std_logic;
+        rd_data_valid : in  std_logic);
     end component;
 
     -- clock 
@@ -46,14 +46,14 @@ architecture behavior of t_i2c_slave is
     signal sda_out : std_logic := '1';
    
     -- RX interface
-    signal rx_data : std_logic_vector(7 downto 0);
-    signal rx_data_valid : std_logic;
-    signal rx_data_ack : std_logic := '0';
+    signal wr_data : std_logic_vector(7 downto 0);
+    signal wr_data_valid : std_logic;
+    signal wr_data_ack : std_logic := '0';
 
  	-- TX interface
-    signal tx_data : std_logic_vector(7 downto 0) := (others => '0');
-    signal tx_data_req : std_logic;
-    signal tx_data_valid : std_logic := '0';
+    signal rd_data : std_logic_vector(7 downto 0) := (others => '0');
+    signal rd_data_req : std_logic;
+    signal rd_data_valid : std_logic := '0';
 
     -- 400kHz I2C clock
     constant i2c_clk_period : time := 2.5 us;
@@ -123,12 +123,12 @@ begin
         clk => clk,
         scl => scl,
         sda => sda,
-        rx_data => rx_data,
-        rx_data_valid => rx_data_valid,
-        rx_data_ack => rx_data_ack,
-        tx_data => tx_data,
-        tx_data_req => tx_data_req,
-        tx_data_valid => tx_data_valid);
+        wr_data => wr_data,
+        wr_data_valid => wr_data_valid,
+        wr_data_ack => wr_data_ack,
+        rd_data => rd_data,
+        rd_data_req => rd_data_req,
+        rd_data_valid => rd_data_valid);
 
     -- clock generator
     clk <= not clk after clk_period / 2 when clk_enabled = true else '0';
